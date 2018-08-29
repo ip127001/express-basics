@@ -16,5 +16,11 @@
   "bugs": {
     "url": "https://github.com/ip127001/express-basics/issues"
   },
-  "homepage": "https://github.com/ip127001/express-basics#readme"
+  "homepage": "https://github.com/ip127001/express-basics#readme",
+  "devDependencies": {
+    "nodemon": "^1.18.3"
+  },
+  "dependencies": {
+    "express": "^4.16.3"
+  }
 }
