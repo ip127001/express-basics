@@ -2,6 +2,8 @@ var express = require("express");
 var app = express();
 
 var fs = require('fs');
+var engines = require('consolidate');
+
 var _ = require('lodash');
 var users = [];
 
@@ -16,13 +18,15 @@ fs.readFile('users.json', {
     })
 })
 
-app.get('/', function (req, res) {
-    var buffer = '';
+app.engine('hbs', engines.handlebars);
 
-    users.forEach(function (user) {
-        buffer += "<a href='/" + user.username + "'>" + user.name.full + "</a>" + '<br>';
+app.set('views', './views');
+app.set('view engine', 'hbs');
+
+app.get('/', function (req, res) {
+    res.render('index', {
+        users: users
     })
-    res.send(buffer);
 });
 
 app.get(/big.*/, function (req, res, next) {
