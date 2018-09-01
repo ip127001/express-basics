@@ -20,6 +20,11 @@ router.get('/', helpers.verifyUser, function (req, res) {
     })
 })
 
+router.use(function (err, req, res, next) {
+    console.log(err.stack)
+    res.status(500).send("server error")
+})
+
 router.put('/', function (req, res) {
     var username = req.params.username
     var user = helpers.getUser(username)
