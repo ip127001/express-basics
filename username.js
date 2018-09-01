@@ -1,6 +1,7 @@
 var express = require('express')
 var helpers = require('./helpers')
 var fs = require('fs')
+var User = require('./db.js').User
 
 var router = express.Router({
     mergeParams: true
@@ -13,10 +14,13 @@ router.all('/', function (req, res, next) {
 
 router.get('/', helpers.verifyUser, function (req, res) {
     var username = req.params.username
-    var user = helpers.getUser(username)
-    res.render('user', {
-        user: user,
-        address: user.location
+    User.findOne({
+        username: username
+    }, function (err, user) {
+        res.render('user', {
+            user: user,
+            address: user.location
+        })
     })
 })
 
@@ -27,15 +31,20 @@ router.use(function (err, req, res, next) {
 
 router.put('/', function (req, res) {
     var username = req.params.username
-    var user = helpers.getUser(username)
-    user.location = req.body
-    helpers.saveUser(username, user)
-    res.end()
+
+    User.findOne({
+        username: username
+    }, function (err, user) {
+        if (err) console.log(err)
+
+        user.name.full = req.body.name;
+        user.location = req.body.location;
+        user.save(function () {
+            res.end()
+        })
+    })
 })
 
-router.get('/edit', function (req, res) {
-    res.send('you want to edit' + req.params.username)
-})
 
 router.delete('/', function (req, res) {
     var fp = helpers.getUserFilePath(req.params.username)
