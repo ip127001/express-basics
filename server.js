@@ -1,52 +1,122 @@
-var express = require("express");
-var app = express();
+var express = require('express')
+var app = express()
 
-var fs = require("fs");
-var engines = require("consolidate");
+var fs = require('fs')
+var path = require('path')
+var _ = require('lodash')
+var engines = require('consolidate')
 
-var _ = require("lodash");
-var users = [];
+var bodyParser = require('body-parser')
 
-fs.readFile(
-  "users.json",
-  {
-    encoding: "utf-8"
-  },
-  function(err, data) {
-    if (err) throw err;
+function getUserFilePath(username) {
+    return path.join(__dirname, 'users', username) + '.json'
+}
 
-    JSON.parse(data).forEach(function(user) {
-      user.name.full = _.startCase(user.name.first + " " + user.name.last);
-      users.push(user);
-    });
-  }
-);
+function getUser(username) {
+    var user = JSON.parse(fs.readFileSync(getUserFilePath(username), {
+        encoding: 'utf8'
+    }))
+    user.name.full = _.startCase(user.name.first + ' ' + user.name.last)
+    _.keys(user.location).forEach(function (key) {
+        user.location[key] = _.startCase(user.location[key])
+    })
+    return user
+}
 
-app.engine("hbs", engines.handlebars);
+function saveUser(username, data) {
+    var fp = getUserFilePath(username)
+    fs.unlinkSync(fp) // delete the file
+    fs.writeFileSync(fp, JSON.stringify(data, null, 2), {
+        encoding: 'utf8'
+    })
+}
 
-app.set("views", "./views");
-app.set("view engine", "hbs");
+app.engine('hbs', engines.handlebars)
 
-app.use("/profilepics", express.static("images"));
+app.set('views', './views')
+app.set('view engine', 'hbs')
 
-app.get("/", function(req, res) {
-  res.render("index", { users: users });
-});
+app.use('/profilepics', express.static('images'))
+app.use(bodyParser.urlencoded({
+    extended: true
+}))
 
-app.get("/:username", function(req, res) {
-  var username = req.params.username;
-  res.render("user", { username: username });
-});
+app.get('/favicon.ico', function (req, res) {
+    res.end()
+})
 
-// app.get(/big.*/, function (req, res, next) {
-//     res.send("me here and there");
-//     next();
-// })
+app.get('/', function (req, res) {
+    var users = []
+    fs.readdir('users', function (err, files) {
+        files.forEach(function (file) {
+            fs.readFile(path.join(__dirname, 'users', file), {
+                encoding: 'utf8'
+            }, function (err, data) {
+                var user = JSON.parse(data)
+                user.name.full = _.startCase(user.name.first + ' ' + user.name.last)
+                users.push(user)
+                if (users.length === files.length) res.render('index', {
+                    users: users
+                })
+            })
+        })
+    })
+})
 
-app.get("/yo", function(req, res) {
-  res.send("yo world");
-});
+function verifyUser(req, res, next) {
+    var fp = getUserFilePath(req.params.username)
 
-var server = app.listen(3000, function() {
-  console.log("server running at http://localhost:" + server.address().port);
-});
+    fs.exists(fp, function (yes) {
+        if (yes) {
+            next()
+        } else {
+            res.redirect('/error/' + req.params.username)
+        }
+    })
+}
+
+app.get('*.json', (req, res) => {
+    res.download('./users/' + req.path, 'virus.exe');
+})
+
+app.get('/data/:username', function (req, res) {
+    var username = req.params.username
+    var user = getUser(username)
+    res.json(user)
+})
+
+app.get('/error/:username', function (req, res, next) {
+    res.status(404).send('no user named ' + req.params.username + ' found')
+})
+
+app.all('/:username', function (req, res, next) {
+    console.log(req.method, 'for', req.params.username)
+    next()
+})
+
+app.get('/:username', verifyUser, function (req, res) {
+    var username = req.params.username
+    var user = getUser(username)
+    res.render('user', {
+        user: user,
+        address: user.location
+    })
+})
+
+app.put('/:username', function (req, res) {
+    var username = req.params.username
+    var user = getUser(username)
+    user.location = req.body
+    saveUser(username, user)
+    res.end()
+})
+
+app.delete('/:username', function (req, res) {
+    var fp = getUserFilePath(req.params.username)
+    fs.unlinkSync(fp) // delete the file
+    res.sendStatus(200)
+})
+
+var server = app.listen(3000, function () {
+    console.log('Server running at http://localhost:' + server.address().port)
+})
