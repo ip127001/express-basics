@@ -9,4 +9,5 @@ middleware
 streams
 mongodb integration
 mongoose
+virtual Properties with mongoose
 ```
